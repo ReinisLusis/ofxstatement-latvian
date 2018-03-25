@@ -1,10 +1,9 @@
 """Parser implementation for DNB generated statement reports"""
 
-#test
-
 import re
 import logging
 from xml.etree import ElementTree
+from io import BytesIO
 
 from ofxstatement.parser import StatementParser
 from ofxstatement.plugin import Plugin
@@ -100,6 +99,17 @@ class dnbLVStatementParser(StatementParser):
     def parse_float(self, value):
         return value if isinstance(value, float) else float(value.replace(',', '.'))
 
+    # TODO: considef movindg __enter__ and __exit__ to parent class
+    def __enter__(self):
+        self.close_fin = False
+        if (isinstance(self.fin, bytes)):
+            self.fin = BytesIO(self.fin)
+            self.close_fin = True
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if (self.close_fin):
+            self.fin.close()
 
 class DnbLVPlugin(Plugin):
     """Latvian DNB CSV"""
@@ -108,3 +118,6 @@ class DnbLVPlugin(Plugin):
         parser = dnbLVStatementParser(fin)
         parser.statement.currency = self.settings.get('currency', 'EUR')
         return parser
+
+    def with_parser(self, input):
+        return dnbLVStatementParser(input)
